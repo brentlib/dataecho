@@ -1,6 +1,81 @@
 from typing import Union
 import numpy as np
 import scipy.stats as stats
+import math
+
+# find margin of error
+def find_margin_of_error(
+        sample_size: int,
+        confidence_level: float = 0.95,
+        response_rate: float = 0.5,
+        population_size: int = 1000000
+    ) -> float:
+    """
+    Finds the margin of error for a survey given a sample size. 
+
+    Args:
+        sample_size (int): The size of the sample.
+        confidence_level (float): The desired confidence level (e.g. 0.95 for 95% confidence level)
+        response_rate (float): The expected response rate (e.g. 0.5 for 50% response rate)
+        population_size (int): The size of the population (e.g. 1000000 for 1 million people)
+
+    Returns:
+        float: The margin of error
+    """
+
+    # calculate z-score for the given confidence level
+    z_score = abs(stats.norm.ppf((1 - confidence_level) / 2))
+
+    # Calculate the margin of error
+    d1 = z_score * z_score * response_rate * (1 - response_rate)
+    d2 = d1 * (population_size - sample_size) / (sample_size * (population_size - 1))
+    margin_of_error = math.sqrt(d2)
+
+    return margin_of_error
+
+# find optimal sample size
+def find_optimal_sample_size(
+        margin_of_error: float,
+        confidence_level: float,
+        response_rate: float = 0.5,
+        population_size: int = 1000000
+    ) -> int:
+    """
+    Finds the optimal sample size for a survey given a desired margin of error and confidence level.
+
+    Args:
+        margin_of_error (float): The desired margin of error (e.g. 0.05 for 5% margin of error)
+        confidence_level (float): The desired confidence level (e.g. 0.95 for 95% confidence level)
+        response_rate (float): The expected response rate (e.g. 0.5 for 50% response rate)
+        population_size (int): The size of the population (e.g. 1000000 for 1 million people)
+
+    Returns:
+        int: The optimal sample size
+
+    References:
+
+    """
+    # Input validation
+    if not all(isinstance(x, (int, float)) for x in [margin_of_error, confidence_level, response_rate, population_size]):
+        raise TypeError("All inputs must be numeric")
+    if not 0 < margin_of_error < 1:
+        raise ValueError("Margin of error must be between 0 and 1")
+    if not 0 < confidence_level < 1:
+        raise ValueError("Confidence level must be between 0 and 1")
+    if not 0 <= response_rate <= 1:
+        raise ValueError("Response rate must be between 0 and 1")
+    if population_size < 1:
+        raise ValueError("Population size must be positive")
+
+    # calculate z-score for the given confidence level
+    z_score = abs(stats.norm.ppf((1 - confidence_level) / 2))
+
+    # Calculate the sample size using Cochran's formula
+    d1 = z_score * z_score * response_rate * (1 - response_rate)
+    d2 = (population_size - 1) * (margin_of_error * margin_of_error) + d1
+    rec_sample_size = math.ceil(population_size * d1 / d2)
+
+    return rec_sample_size
 
 # difference of means test (Welch's t-test)
 def welch_t_test(

@@ -1,3 +1,5 @@
 .venv
 sandbox.ipynb
 __pycache__/
+data/
+.env

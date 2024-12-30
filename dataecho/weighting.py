@@ -1,6 +1,84 @@
 import pandas as pd
 import numpy as np
+import requests
 
+# list of valid variables for the census api that the package supports
+def get_valid_variables() -> list[str]:
+    """
+    Get the valid variables for the census api
+    """
+    valid_variables = [
+        "region",
+        "age",
+        "income",
+        "education",
+        "race",
+        "gender"
+    ]
+    return valid_variables
+
+# function to validate the api key
+def validate_api_key(api_key: str) -> bool:
+    """
+    Validate the api key
+    """
+    # make a basic request to the census api to check if the api key is valid
+    url = f"https://api.census.gov/data/2023/acs/acs5?get=NAME,B01001_001E&for=us:*&key={api_key}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        return True
+    else:
+        return False
+
+# convert readable variable names to census api variable names
+def convert_variable_names(variables: list[str]) -> list[str]:
+    """
+    Convert readable variable names to census api variable names
+    """
+    census_variables = {}
+    for variable in variables:
+        if variable == "age":
+            census_variables["age"] = "B01001_001E"
+        elif variable == "income":
+            census_variables["income"] = "B19013_001E"
+        elif variable == "education":
+            census_variables["education"] = "B15003_001E"
+        elif variable == "race":
+            census_variables["race"] = "B02001_001E"
+        else:
+            raise ValueError(f"Variable {variable} is not valid. Check the documentation on this function for valid variables.")
+        
+    return census_variables
+
+# function to get acs census data from census api
+def get_acs_data(
+        variables: list[str],
+        api_key: str, 
+        year: int = 2020,
+        geography: str = "county"
+    ) -> pd.DataFrame:
+    """
+    Get ACS census data from the census api
+    """
+
+    # check to make sure the api key exists
+    if not api_key:
+        raise ValueError("API key is required. You can get a free api key from the U.S. Census Bureau at https://api.census.gov/data/key_signup.html")
+    
+    # check to make sure the api key is valid
+    if not validate_api_key(api_key):
+        raise ValueError("API key is invalid. You can get a free api key from the U.S. Census Bureau at https://api.census.gov/data/key_signup.html")
+    
+    # check to make sure the variables are valid
+    valid_variables = get_valid_variables()
+    for variable in variables:
+        if variable not in valid_variables:
+            raise ValueError(f"Variable {variable} is not valid. Check the documentation on this function for valid variables.")
+        
+    # get the data from the census api
+    url = f"https://api.census.gov/data/{year}/{geography}?get={','.join(variables)}&for=county:*&key={api_key}"
+
+# function to weight survey data using raking/ipf method
 def rake_weighting(
     survey_data: pd.DataFrame,
     id_col: str,
@@ -143,9 +221,9 @@ def rake_weighting(
 
         # print warnings with an orange background
         if min_weight < 0.2:
-            print("\033[93mWarning: Check your weights. Some weights are less than 0.2. Skewed weights might affect results. You might consider trimming your weights.\033[0m")
+            print("\033[93mWarning: Check your weights. Some weights are less than 0.2. Skewed weights might affect results. You might consider trimming your weights or reducing the number of dimensions you are weighting on.\033[0m")
         if max_weight > 5.0:
-            print("\033[93mWarning: Check your weights. Some weights are greater than 5.0. Skewed weights might affect results. You might consider trimming your weights.\033[0m")
+            print("\033[93mWarning: Check your weights. Some weights are greater than 5.0. Skewed weights might affect results. You might consider trimming your weights or reducing the number of dimensions you are weighting on.\033[0m")
         if avg_weight != 1.0:
             print("\033[93mWarning: Check your weights. The average weight is not 1.0. This typically indicates a problem with the data.\033[0m")
 

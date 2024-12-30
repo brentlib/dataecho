@@ -3,6 +3,52 @@ import numpy as np
 import scipy.stats as stats
 import math
 
+# compare two proportions
+def prop_sig_test(
+        sample_size_1: int,
+        sample_size_2: int,
+        response_rate_1: float,
+        response_rate_2: float
+    ) -> float:
+    """
+    Performs a significance test for comparing two proportions.
+
+    Args:
+        sample_size_1 (int): The size of the first sample.
+        sample_size_2 (int): The size of the second sample.
+        response_rate_1 (float): The response rate of the first sample.
+        response_rate_2 (float): The response rate of the second sample.
+
+    Returns:
+        float: The p-value of the significance test.
+
+    References:
+    """
+
+    sd1 = np.sqrt(sample_size_1 * response_rate_1 * (1 - response_rate_1))
+    sd2 = np.sqrt(sample_size_2 * response_rate_2 * (1 - response_rate_2))
+    
+    min_sd = min(sd1, sd2)
+    max_sd = max(sd1, sd2)
+    sd_ratio = min_sd / max_sd
+
+    if sd_ratio > 2:
+        pooled = False
+    else:
+        pooled = True
+
+    if pooled:
+        p_hat = (sample_size_1 * response_rate_1 + sample_size_2 * response_rate_2) / (sample_size_1 + sample_size_2)
+        z_score = (response_rate_1 - response_rate_2) / np.sqrt(p_hat * (1-p_hat) * (1/sample_size_1 + 1/sample_size_2))
+        z_score_abs = abs(z_score)
+        p_value = 2 * (1 - stats.norm.cdf(z_score_abs))
+        return p_value
+    else:
+        z_score = (response_rate_1 - response_rate_2) / np.sqrt(response_rate_1 * (1 - response_rate_1) / sample_size_1 + response_rate_2*(1-response_rate_2)/sample_size_2)
+        z_score_abs = abs(z_score)
+        p_value = 2 * (1 - stats.norm.cdf(z_score_abs))
+        return p_value
+
 # find margin of error
 def find_margin_of_error(
         sample_size: int,

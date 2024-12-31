@@ -33,7 +33,7 @@ def validate_api_key(api_key: str) -> bool:
 # helper api function to get data from census api
 def get_acs_data(table_name: str, api_key: str, year: int = 2023, geography: str = "us") -> pd.DataFrame:
     try:
-        url = f"https://api.census.gov/data/{year}/acs/acs5?get=NAME,{table_name}&for={geography}:*&key={api_key}"
+        url = f"https://api.census.gov/data/{year}/acs/acsse?get=NAME,{table_name}&for={geography}:*&key={api_key}"
         response = requests.get(url)
         df = pd.DataFrame(response.json()[1:], columns=response.json()[0])
         return df
@@ -45,12 +45,12 @@ def get_acs_region(api_key: str, year: int = 2023) -> pd.DataFrame:
     """
     Get region from census api
     """
-    table_name = "B01001_001E"
+    table_name = "K200101_001E"
     geography = "region"
     data = get_acs_data(table_name, api_key, year, geography)
     new_columns = {
         "NAME": "category",
-        "B01001_001E": "population",
+        table_name: "population",
         "region": "OMIT"
     }
     data.rename(columns=new_columns, inplace=True)
@@ -59,6 +59,59 @@ def get_acs_region(api_key: str, year: int = 2023) -> pd.DataFrame:
     data.drop(columns=['OMIT'], inplace=True)
     data['variable'] = "region"
     return data
+
+# get state from census api (helper)
+def get_acs_state(api_key: str, year: int = 2023) -> pd.DataFrame:
+    """
+    Get state from census api
+    """
+    table_name = "K200101_001E"
+    geography = "state"
+    data = get_acs_data(table_name, api_key, year, geography)
+    new_columns = {
+        "NAME": "category",
+        table_name: "population",
+        "state": "OMIT"
+    }
+    data.rename(columns=new_columns, inplace=True)
+    data['population'] = pd.to_numeric(data['population'])
+    data['share'] = data['population'] / data['population'].sum()
+    data.drop(columns=['OMIT'], inplace=True)
+    data['variable'] = "state"
+    return data
+
+# get age from census api (helper)
+def get_acs_age(api_key: str, year: int = 2023, geography: str = "us") -> pd.DataFrame:
+    """
+    Get age from census api
+    """
+    table_dict = {
+        '18-24': 'K200104_003E',
+        '25-34': 'K200104_004E',
+        '35-44': 'K200104_005E',
+        '45-54': 'K200104_006E',
+        '55-64': 'K200104_007E',
+        '65+': 'K200104_008E'
+    }
+
+    data_list = pd.DataFrame()
+
+    for key, value in table_dict.items():
+        data = get_acs_data(value, api_key, year, geography)
+        new_columns = {
+            "NAME": 'geography',
+            value: "population",
+            geography: "OMIT"
+        }
+        data.rename(columns=new_columns, inplace=True)
+        data['category'] = key
+        data['population'] = pd.to_numeric(data['population'])
+        data.drop(columns=['OMIT'], inplace=True)
+        data['variable'] = "age"
+        data_list = pd.concat([data_list, data], ignore_index=True)
+
+    data_list['share'] = data_list['population'] / data_list['population'].sum()
+    return data_list
 
 # function to get acs census data from census api
 def get_full_acs_data(
@@ -79,9 +132,9 @@ def get_full_acs_data(
     if not validate_api_key(api_key):
         raise ValueError("API key is invalid. You can get a free api key from the U.S. Census Bureau at https://api.census.gov/data/key_signup.html")
     
-    # make sure year is not greater than 2023 and not less than 2013
-    if year > 2023 or year < 2013:
-        raise ValueError("Year must be between 2013 and 2023. You can get data for other years from the U.S. Census Bureau at https://www.census.gov/data/developers/data-sets/acs-5year.html")
+    # make sure year is not greater than 2023 and not less than 2014
+    if year > 2023 or year < 2014:
+        raise ValueError("Year must be between 2014 and 2023. You can get data for other years from the U.S. Census Bureau at https://www.census.gov/data/developers/data-sets/acs-5year.html")
     
     # check to make sure the variables are valid
     valid_variables = get_valid_variables()
@@ -90,7 +143,6 @@ def get_full_acs_data(
             raise ValueError(f"Variable {variable} is not valid. Check the documentation on this function for valid variables.")
         
     # get the data from the census api
-    url = f"https://api.census.gov/data/{year}/acs/acs5?get=NAME,{table_name}&for={geography}:*&key={api_key}"
 
 
 # function to weight survey data using raking/ipf method
